@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from __future__ import print_function
 
 
@@ -11,24 +11,29 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from PySide2 import QtSvg
 
 #Import model
-from molEditWidget import MolEditWidget
-from ptable_widget import PTable
+from rdeditor.molEditWidget import MolEditWidget
+from rdeditor.ptable_widget import PTable
 
 from rdkit import Chem
 
-# The main window class
-class MainWindow(QtWidgets.QMainWindow):
+# The molecular editor widget
+class QrdEditor(QtWidgets.QWidget):
     # Constructor function
-    def __init__(self, fileName=None, loglevel="WARNING"):
-        super(MainWindow,self).__init__()
+    def __init__(self, parent=None, fileName=None, loglevel="WARNING"):
+        super(QrdEditor,self).__init__(parent=parent)
         self.pixmappath = os.path.abspath(os.path.dirname(__file__)) + '/pixmaps/'
         self.loglevels = ["Critical","Error","Warning","Info","Debug","Notset"]
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self)
         self.editor = MolEditWidget()
         self.ptable = PTable()
         self._fileName = None
         self.initGUI(fileName = fileName)
         self.ptable.atomtypeChanged.connect(self.setAtomTypeName)
         self.editor.logger.setLevel(loglevel)
+
+        self.horizontalLayout.addWidget(self.mainToolBar)
+        self.horizontalLayout.addWidget(self.editor)
+        self.horizontalLayout.addWidget(self.sideToolBar)
 
     #Properties
     @property
@@ -43,99 +48,25 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def initGUI(self, fileName=None):
-        self.setWindowTitle("A simple mol editor")
-        self.setWindowIcon(QIcon(self.pixmappath + 'appicon.svg.png'))
-        self.setGeometry(100, 100, 200, 150)
-
-        self.center = self.editor
-        self.center.setFixedSize(600,600)
-        self.setCentralWidget(self.center)
         self.fileName = fileName
 
         self.filters = "MOL Files (*.mol *.mol);;Any File (*)"
         self.SetupComponents()
 
-        self.infobar = QLabel("")
-        self.myStatusBar.addPermanentWidget(self.infobar, 0)
-
         if self.fileName is not None:
-            self.logger.info("Loading model from %s"%self.fileName)
+            self.editor.logger.info("Loading model from %s"%self.fileName)
             self.loadMolFile(fileName)
 
-        self.editor.sanitizeSignal.connect(self.infobar.setText)
         self.show()
 
     # Function to setup status bar, central widget, menu bar, tool bar
     def SetupComponents(self):
-        self.myStatusBar = QStatusBar()
-#        self.molcounter = QLabel("-/-")
-#        self.myStatusBar.addPermanentWidget(self.molcounter, 0)
-        self.setStatusBar(self.myStatusBar)
-        self.myStatusBar.showMessage('Ready', 10000)
-
         self.CreateActions()
-        self.CreateMenus()
+        # self.CreateMenus()
         self.CreateToolBars()
 
-    # Actual menu bar item creation
-    def CreateMenus(self):
-        self.fileMenu = self.menuBar().addMenu("&File")
-        self.toolMenu = self.menuBar().addMenu("&Tools")
-        self.atomtypeMenu = self.menuBar().addMenu("&AtomTypes")
-        self.bondtypeMenu = self.menuBar().addMenu("&BondTypes")
-        self.helpMenu = self.menuBar().addMenu("&Help")
-
-        self.fileMenu.addAction(self.openAction)
-        self.fileMenu.addAction(self.saveAction)
-        self.fileMenu.addAction(self.saveAsAction)
-        self.fileMenu.addSeparator()
-        self.fileMenu.addAction(self.exitAction)
-
-        self.toolMenu.addAction(self.selectAction)
-        self.toolMenu.addAction(self.addAction)
-        self.toolMenu.addAction(self.addBondAction)
-        self.toolMenu.addAction(self.replaceAction)
-        self.toolMenu.addAction(self.rsAction)
-        self.toolMenu.addAction(self.ezAction)
-        self.toolMenu.addAction(self.increaseChargeAction)
-        self.toolMenu.addAction(self.decreaseChargeAction)
-
-        self.toolMenu.addSeparator()
-        self.toolMenu.addAction(self.cleanCoordinatesAction)
-        self.toolMenu.addSeparator()
-        self.toolMenu.addAction(self.undoAction)
-        self.toolMenu.addSeparator()
-        self.toolMenu.addAction(self.removeAction)
-
-
-        #Atomtype menu
-        for action in self.atomActions:
-            self.atomtypeMenu.addAction(action)
-        self.specialatommenu = self.atomtypeMenu.addMenu("All Atoms")
-        for atomnumber in self.ptable.ptable.keys():
-            atomname = self.ptable.ptable[atomnumber]["Symbol"]
-            self.specialatommenu.addAction(self.ptable.atomActions[atomname])
-
-        #Bondtype Menu
-        self.bondtypeMenu.addAction(self.singleBondAction)
-        self.bondtypeMenu.addAction(self.doubleBondAction)
-        self.bondtypeMenu.addAction(self.tripleBondAction)
-        self.bondtypeMenu.addSeparator()
-        #Bondtype Special types
-        self.specialbondMenu = self.bondtypeMenu.addMenu("Special Bonds")
-        for key in self.bondActions.keys():
-            self.specialbondMenu.addAction(self.bondActions[key])
-        #Help menu
-        self.helpMenu.addAction(self.aboutAction)
-        self.helpMenu.addSeparator()
-        self.helpMenu.addAction(self.aboutQtAction)
-        #Debug level sub menu
-        self.loglevelMenu = self.helpMenu.addMenu("Logging Level")
-        for loglevel in self.loglevels:
-            self.loglevelMenu.addAction(self.loglevelactions[loglevel])
-
     def CreateToolBars(self):
-        self.mainToolBar = self.addToolBar('Main')
+        self.mainToolBar = QToolBar(self)
         #Main action bar
         self.mainToolBar.addAction(self.openAction)
         self.mainToolBar.addAction(self.saveAction)
@@ -159,8 +90,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.mainToolBar.addSeparator()
         self.mainToolBar.addAction(self.undoAction)
         #Side Toolbar
-        self.sideToolBar = QtWidgets.QToolBar(self)
-        self.addToolBar(QtCore.Qt.LeftToolBarArea, self.sideToolBar)
+        self.sideToolBar = QToolBar(self)
+        # self.addToolBar(QtCore.Qt.LeftToolBarArea, self.sideToolBar)
         self.sideToolBar.addAction(self.singleBondAction)
         self.sideToolBar.addAction(self.doubleBondAction)
         self.sideToolBar.addAction(self.tripleBondAction)
@@ -168,14 +99,14 @@ class MainWindow(QtWidgets.QMainWindow):
         for action in self.atomActions:
             self.sideToolBar.addAction(action)
         self.sideToolBar.addAction(self.openPtableAction)
+        self.mainToolBar.setOrientation(Qt.Vertical)
+        self.sideToolBar.setOrientation(Qt.Vertical)
 
     def loadMolFile(self, filename):
         self.fileName = filename
         mol = Chem.MolFromMolFile(str(self.fileName), sanitize=False, strictParsing=False)
         self.editor.mol = mol
-        self.statusBar().showMessage("File opened")
-
-
+        # self.statusBar().showMessage("File opened")
 
     def openFile(self):
         self.fileName, self.filterName = QFileDialog.getOpenFileName(self, caption = "Open MOL file",filter = self.filters)
@@ -201,10 +132,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editor.clearAtomSelection()
         self.editor.mol = None
         self.fileName = None
-        self.statusBar().showMessage("Canvas Cleared")
+        # self.statusBar().showMessage("Canvas Cleared")
 
     def closeEvent(self, event):
-        self.editor.logger.debug("closeEvent triggered")
+        # self.editor.logger.debug("closeEvent triggered")
         self.exitFile()
         event.ignore()
 
@@ -213,8 +144,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if response == "Y":
             self.ptable.close()
             exit(0) #TODO, how to exit qapplication from within class instance?
-        else:
-            self.editor.logger.debug("Abort closing")
+        # else:
+            # self.editor.logger.debug("Abort closing")
 
 
     # Function to show Diaglog box with provided Title and Message
@@ -234,30 +165,28 @@ class MainWindow(QtWidgets.QMainWindow):
     def setAction(self):
         sender = self.sender()
         self.editor.setAction(sender.objectName())
-        self.myStatusBar.showMessage("Action %s selected"%sender.objectName())
+        # self.myStatusBar.showMessage("Action %s selected"%sender.objectName())
 
     def setBondType(self):
         sender = self.sender()
         self.editor.setBondType(sender.objectName())
-        self.myStatusBar.showMessage("Bondtype %s selected"%sender.objectName())
+        # self.myStatusBar.showMessage("Bondtype %s selected"%sender.objectName())
 
     def setAtomType(self):
         sender = self.sender()
         self.editor.setAtomType(sender.objectName())
-        self.myStatusBar.showMessage("Atomtype %s selected"%sender.objectName())
+        # self.myStatusBar.showMessage("Atomtype %s selected"%sender.objectName())
 
     def setAtomTypeName(self, atomname):
         self.editor.setAtomType(str(atomname))
-        self.myStatusBar.showMessage("Atomtype %s selected"%atomname)
+        # self.myStatusBar.showMessage("Atomtype %s selected"%atomname)
 
     def openPtable(self):
         self.ptable.show()
 
     def setLogLevel(self):
         loglevel = self.sender().objectName().split(':')[-1].upper()
-        self.editor.logger.setLevel(loglevel)
-
-
+        # self.editor.logger.setLevel(loglevel)
 
     # Function to create actions for menus and toolbars
     def CreateActions(self):
@@ -438,25 +367,125 @@ class MainWindow(QtWidgets.QMainWindow):
                                    statusTip="Set logging level to %s"%key,
                                    triggered=self.setLogLevel, objectName="loglevel:%s"%key)
 
-def launch(loglevel="WARNING"):
+# The main window class
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self, fileName=None, loglevel="WARNING"):
+        super(MainWindow,self).__init__()
+        self.pixmappath = os.path.abspath(os.path.dirname(__file__)) + '/pixmaps/'
+        self.loglevels = ["Critical","Error","Warning","Info","Debug","Notset"]
+        self.moleditor = QrdEditor(parent=self, fileName=fileName, loglevel=loglevel)
+        self._fileName = None
+        self.initGUI(fileName = fileName)
+
+    def initGUI(self, fileName=None):
+        self.moleditor.initGUI(fileName)
+        self.setWindowTitle("A simple mol editor")
+        self.setWindowIcon(QIcon(self.pixmappath + 'appicon.svg.png'))
+        self.setGeometry(100, 100, 200, 150)
+
+        self.center = self.moleditor
+        self.center.setFixedSize(600,600)
+        self.setCentralWidget(self.center)
+
+        self.SetupComponents()
+
+        self.infobar = QLabel("")
+        self.myStatusBar.addPermanentWidget(self.infobar, 0)
+
+        self.moleditor.editor.sanitizeSignal.connect(self.infobar.setText)
+        self.show()
+
+    def SetupComponents(self):
+        self.myStatusBar = QStatusBar()
+        self.setStatusBar(self.myStatusBar)
+        self.myStatusBar.showMessage('Ready', 10000)
+
+        self.CreateMenus()
+
+        self.mainToolBar = self.addToolBar(self.moleditor.mainToolBar)
+        self.addToolBar(QtCore.Qt.LeftToolBarArea, self.moleditor.sideToolBar)
+
+        self.moleditor.mainToolBar.hide()
+        self.moleditor.sideToolBar.hide()
+
+    # Actual menu bar item creation
+    def CreateMenus(self):
+        self.fileMenu = self.menuBar().addMenu("&File")
+        self.toolMenu = self.menuBar().addMenu("&Tools")
+        self.atomtypeMenu = self.menuBar().addMenu("&AtomTypes")
+        self.bondtypeMenu = self.menuBar().addMenu("&BondTypes")
+        self.helpMenu = self.menuBar().addMenu("&Help")
+
+        self.fileMenu.addAction(self.moleditor.openAction)
+        self.fileMenu.addAction(self.moleditor.saveAction)
+        self.fileMenu.addAction(self.moleditor.saveAsAction)
+        self.fileMenu.addSeparator()
+        self.fileMenu.addAction(self.moleditor.exitAction)
+
+        self.toolMenu.addAction(self.moleditor.selectAction)
+        self.toolMenu.addAction(self.moleditor.addAction)
+        self.toolMenu.addAction(self.moleditor.addBondAction)
+        self.toolMenu.addAction(self.moleditor.replaceAction)
+        self.toolMenu.addAction(self.moleditor.rsAction)
+        self.toolMenu.addAction(self.moleditor.ezAction)
+        self.toolMenu.addAction(self.moleditor.increaseChargeAction)
+        self.toolMenu.addAction(self.moleditor.decreaseChargeAction)
+
+        self.toolMenu.addSeparator()
+        self.toolMenu.addAction(self.moleditor.cleanCoordinatesAction)
+        self.toolMenu.addSeparator()
+        self.toolMenu.addAction(self.moleditor.undoAction)
+        self.toolMenu.addSeparator()
+        self.toolMenu.addAction(self.moleditor.removeAction)
+
+
+        #Atomtype menu
+        for action in self.moleditor.atomActions:
+            self.atomtypeMenu.addAction(action)
+        self.specialatommenu = self.atomtypeMenu.addMenu("All Atoms")
+        for atomnumber in self.moleditor.ptable.ptable.keys():
+            atomname = self.moleditor.ptable.ptable[atomnumber]["Symbol"]
+            self.specialatommenu.addAction(self.moleditor.ptable.atomActions[atomname])
+
+        #Bondtype Menu
+        self.bondtypeMenu.addAction(self.moleditor.singleBondAction)
+        self.bondtypeMenu.addAction(self.moleditor.doubleBondAction)
+        self.bondtypeMenu.addAction(self.moleditor.tripleBondAction)
+        self.bondtypeMenu.addSeparator()
+        #Bondtype Special types
+        self.specialbondMenu = self.bondtypeMenu.addMenu("Special Bonds")
+        for key in self.moleditor.bondActions.keys():
+            self.specialbondMenu.addAction(self.moleditor.bondActions[key])
+        #Help menu
+        self.helpMenu.addAction(self.moleditor.aboutAction)
+        self.helpMenu.addSeparator()
+        self.helpMenu.addAction(self.moleditor.aboutQtAction)
+        #Debug level sub menu
+        self.loglevelMenu = self.helpMenu.addMenu("Logging Level")
+        for loglevel in self.loglevels:
+            self.loglevelMenu.addAction(self.moleditor.loglevelactions[loglevel])
+
+def launch(filename=None, loglevel="WARNING"):
     "Function that launches the mainWindow Application"
     # Exception Handling
     try:
         myApp = QApplication(sys.argv)
-        try:
-            mainWindow = MainWindow(fileName = sys.argv[1], loglevel=loglevel)
-        except:
-            mainWindow = MainWindow(loglevel=loglevel)
+        mainWindow = MainWindow(fileName=filename, loglevel=loglevel)
         myApp.exec_()
         sys.exit(0)
     except NameError:
         print("Name Error:", sys.exc_info()[1])
     except SystemExit:
         print("Closing Window...")
-    except Exception:
+    except Exception as e:
         print(sys.exc_info()[1])
+        raise e
 
 
 if __name__ == '__main__':
-    launch(loglevel="DEBUG")
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        filename = None
+    launch(filename=filename, loglevel="DEBUG")
 
