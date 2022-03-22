@@ -1,6 +1,6 @@
 from setuptools import setup
 
-setup(name='rdeditor',
+setup(name='rdEditor',
       version='0.1',
       description='An RDKit based molecule editor using PySide',
       long_description="""The editor is not meant as a drawing program, rather a simple and easy to expand editor""",
@@ -9,7 +9,7 @@ setup(name='rdeditor',
       author='Esben Jannik Bjerrum',
       author_email='esbenjannik@rocketmail.com',
       license='LGPL',
-      packages=['rdeditor'],
+      packages=['rdEditor'],
       package_data={'rdeditor': ['pixmaps/*']},
       install_requires=[
 	'PySide2',
